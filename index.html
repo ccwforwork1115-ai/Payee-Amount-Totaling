@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>匯款金額累加工具</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#edecea;--surface3:#e4e2de;
+  --border:#dddbd4;--border2:#c8c5bc;
+  --text:#1a1916;--text2:#6a6860;--text3:#aba9a2;
+  --green:#1a6b3c;--green-bg:#edf7f1;
+  --r:10px;--rl:14px;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 60px;}
+.wrap{max-width:920px;margin:0 auto;}
+.hd{margin-bottom:20px;}
+.hd h1{font-size:19px;font-weight:600;margin-bottom:3px;}
+.hd p{font-size:12px;color:var(--text2);}
+
+/* save status bar */
+.save-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;font-size:12px;color:var(--text2);}
+.save-bar .dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s;}
+.save-bar .dot.ok{background:#34a853;}
+.save-bar .dot.dirty{background:#fbbc04;}
+.save-bar .st{flex:1;}
+.save-bar .st .ts{color:var(--text3);margin-left:6px;}
+
+/* tabs */
+.tabs{display:flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:18px;background:var(--surface);}
+.tab{flex:1;padding:9px 0;font-size:13px;font-family:inherit;border:none;background:none;cursor:pointer;color:var(--text2);transition:background .15s,color .15s;}
+.tab.on{background:var(--surface2);color:var(--text);font-weight:500;}
+.tab:not(:last-child){border-right:1px solid var(--border);}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;margin-bottom:14px;}
+.lbl{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;}
+
+/* form */
+.fg{display:grid;gap:8px;margin-bottom:8px;}
+.fg-3{grid-template-columns:1fr 1fr 130px;}
+.fg-2{grid-template-columns:1fr 130px;}
+.fg-1{grid-template-columns:1fr;}
+input,select{font-family:inherit;font-size:13px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus{border-color:var(--border2);background:var(--surface);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.field{position:relative;}
+.field label{display:block;font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:500;}
+
+/* autocomplete */
+.ac-list{position:absolute;z-index:100;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.1);width:100%;top:calc(100% + 3px);left:0;overflow:hidden;max-height:180px;overflow-y:auto;}
+.ac-item{padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px;}
+.ac-item:hover{background:var(--surface2);}
+.ac-tag{font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 6px;border-radius:9px;border:1px solid var(--border);}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;font-size:13px;font-family:inherit;border:1px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--text);cursor:pointer;transition:background .12s,transform .08s;white-space:nowrap;}
+.btn:hover{background:var(--surface2);}
+.btn:active{transform:scale(.97);}
+.btn.pri{background:var(--text);color:#fff;border-color:var(--text);}
+.btn.pri:hover{background:#2d2c29;}
+.btn.ghost{border-color:transparent;color:var(--text2);}
+.btn.ghost:hover{color:#c0392b;background:#fdf2f2;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn.green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn.green:hover{background:#145730;}
+.ibt{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:3px 5px;border-radius:6px;color:var(--text3);transition:color .12s,background .12s;}
+.ibt:hover{color:var(--text);background:var(--surface2);}
+.ibt.danger:hover{color:#c0392b;background:#fdf2f2;}
+.row-actions{display:flex;gap:7px;align-items:center;margin-top:10px;}
+
+/* channel summary */
+.ch-group{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:12px;}
+.ch-header{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);}
+.ch-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.ch-name{font-size:14px;font-weight:600;flex:1;}
+.ch-total{font-size:15px;font-weight:600;}
+.ch-count{font-size:11px;color:var(--text3);margin-left:4px;}
+.ch-rows{background:var(--surface2);}
+.ch-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:8px 16px 8px 36px;border-top:1px solid var(--border);}
+.ch-row-name{font-size:13px;}
+.ch-row-note{font-size:11px;color:var(--text3);margin-top:1px;}
+.ch-row-amt{font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.grand{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);margin-bottom:18px;}
+.grand .gl{font-size:13px;color:var(--text2);}
+.grand .ga{font-size:22px;font-weight:600;}
+
+/* log table */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.toolbar .lbl{margin:0;flex:1;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}
+thead th{text-align:left;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);}
+th.r,td.r{text-align:right;}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody td.amt{font-weight:500;font-variant-numeric:tabular-nums;}
+tbody tr:hover td{background:var(--surface2);}
+.empty-row td{text-align:center;color:var(--text3);padding:22px 0!important;font-size:13px;}
+.note-view{display:flex;align-items:center;gap:3px;cursor:pointer;}
+.note-view span{font-size:12px;color:var(--text2);flex:1;}
+.note-view span.nil{color:var(--text3);font-style:italic;}
+.note-edit-row{display:flex;align-items:center;gap:4px;}
+.note-edit-row input{font-size:12px;padding:3px 7px;border-radius:6px;}
+
+/* manager */
+.mgr-list{display:flex;flex-direction:column;gap:7px;}
+.mgr-item{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--surface2);border-radius:var(--r);}
+.mgr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.mgr-name{flex:1;font-size:13px;}
+.mgr-tag{font-size:10px;color:var(--text3);}
+.mgr-edit-inp{flex:1;font-size:13px;padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);color:var(--text);outline:none;}
+.color-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.cdot{width:21px;height:21px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .1s;}
+.cdot:hover{transform:scale(1.1);}
+.cdot.on{border-color:var(--text);}
+.add-grid{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;}
+.rec-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.rec-tag{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:background .1s;}
+.rec-tag:hover{background:#e3edf8;border-color:#aac4e8;color:#185FA5;}
+.rec-section-label{font-size:10px;color:var(--text3);width:100%;margin-top:2px;}
+
+/* rec group */
+.rec-group-block{margin-bottom:14px;}
+.rec-group-header{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface3);border-radius:var(--r);margin-bottom:6px;}
+.rec-group-header .rg-name{flex:1;font-size:12px;font-weight:600;color:var(--text2);}
+.rec-group-header .rg-cnt{font-size:11px;color:var(--text3);}
+.rec-group-header .rg-acts{display:flex;gap:2px;}
+.rec-group-items{display:flex;flex-direction:column;gap:6px;padding-left:10px;}
+.quick-rec-group{margin-bottom:8px;}
+.quick-rec-group-label{font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+.quick-rec-group-tags{display:flex;flex-wrap:wrap;gap:5px;}
+
+/* backup section */
+.backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.backup-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:16px;}
+.backup-box h3{font-size:13px;font-weight:600;margin-bottom:4px;}
+.backup-box p{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;}
+.backup-box .note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;}
+.backup-history{margin-top:14px;}
+.bh-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;font-size:12px;}
+.bh-item .bh-name{flex:1;color:var(--text2);}
+.bh-item .bh-ts{color:var(--text3);font-size:11px;}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1916;color:#fff;font-size:13px;padding:10px 20px;border-radius:999px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* empty */
+.empty-hint{text-align:center;color:var(--text3);font-size:13px;padding:18px 0;}
+
+/* print */
+@media print{
+  body{background:#fff;padding:0;}
+  .np{display:none!important;}
+  .wrap{max-width:100%;}
+  .tabs,.save-bar{display:none;}
+  .ph{display:block!important;}
+  .fn{display:block!important;}
+  .ch-group{page-break-inside:avoid;}
+  @page{size:A4;margin:18mm 14mm;}
+}
+.ph{display:none;margin-bottom:18px;border-bottom:1.5px solid #ccc;padding-bottom:12px;}
+.ph h1{font-size:17px;font-weight:600;margin-bottom:3px;}
+.ph p{font-size:12px;color:#888;}
+.fn{display:none;margin-top:18px;font-size:11px;color:#aaa;text-align:right;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ph"><h1>匯款金額累計表</h1><p id="pm"></p></div>
+
+  <div class="hd np">
+    <h1>匯款金額累加工具</h1>
+    <p>依匯款管道分類，記錄每筆實際受款方與金額</p>
+  </div>
+
+  <!-- 儲存狀態列 -->
+  <div class="save-bar np">
+    <div class="dot" id="save-dot"></div>
+    <span class="st" id="save-st">載入中…</span>
+    <button class="btn sm" onclick="exportJSON()" title="匯出 JSON 備份">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      匯出備份
+    </button>
+  </div>
+
+  <div class="tabs np">
+    <button class="tab on"  onclick="sw('entry')">新增紀錄</button>
+    <button class="tab"     onclick="sw('ch')">管理匯款管道</button>
+    <button class="tab"     onclick="sw('rec')">管理常用受款方</button>
+    <button class="tab"     onclick="sw('backup')">備份管理</button>
+  </div>
+
+  <!-- ═══ 新增紀錄 ═══ -->
+  <div id="t-entry">
+    <div class="card np">
+      <p class="lbl">新增一筆</p>
+      <div class="fg fg-3">
+        <div class="field">
+          <label>匯款管道</label>
+          <select id="ch-sel"></select>
+        </div>
+        <div class="field" style="position:relative;">
+          <label>實際受款方（廠商 / 人頭）</label>
+          <input type="text" id="rec-inp" placeholder="例：巧瑀文具行" autocomplete="off"
+            oninput="onRecInput()" onfocus="onRecInput()" onblur="setTimeout(hideAC,150)" />
+          <div class="ac-list" id="ac-list" style="display:none;"></div>
+        </div>
+        <div class="field">
+          <label>金額（元）</label>
+          <input type="number" id="amt-inp" placeholder="0" min="0" step="1" />
+        </div>
+      </div>
+      <div class="fg fg-1" style="margin-bottom:0;">
+        <div class="field">
+          <label>備註（選填）</label>
+          <input type="text" id="note-inp" placeholder="傳票號、摘要等" />
+        </div>
+      </div>
+      <div class="rec-tags" id="quick-rec"></div>
+      <div class="row-actions">
+        <button class="btn pri" onclick="addEntry()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新增
+        </button>
+        <button class="btn ghost" onclick="clearAll()">清除全部紀錄</button>
+      </div>
+    </div>
+
+    <div id="summary-wrap" style="margin-bottom:16px;"></div>
+    <div class="grand" id="grand" style="display:none;">
+      <span class="gl">合計</span>
+      <span class="ga" id="grand-amt"></span>
+    </div>
+
+    <div class="toolbar np">
+      <p class="lbl" style="margin:0;">明細紀錄</p>
+      <button class="btn sm" onclick="expCSV()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        匯出 CSV
+      </button>
+      <button class="btn sm" onclick="doPrint()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        列印 A4
+      </button>
+    </div>
+    <p class="lbl" id="pdl" style="display:none;margin-bottom:8px;">明細紀錄</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:28px;">#</th>
+          <th style="width:150px;">匯款管道</th>
+          <th style="width:180px;">受款方</th>
+          <th>備註</th>
+          <th class="r" style="width:110px;">金額</th>
+          <th class="np" style="width:34px;"></th>
+        </tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+    <div class="fn" id="fn"></div>
+  </div>
+
+  <!-- ═══ 管理匯款管道 ═══ -->
+  <div id="t-ch" style="display:none;">
+    <div class="card">
+      <p class="lbl">新增匯款管道</p>
+      <div class="add-grid">
+        <div>
+          <input type="text" id="new-ch-name" placeholder="管道名稱" />
+          <div class="color-row" id="color-picker"></div>
+        </div>
+        <button class="btn pri" onclick="addCh()" style="align-self:flex-start;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <p class="lbl">目前匯款管道</p>
+      <div class="mgr-list" id="ch-mgr"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 管理常用受款方 ═══ -->
+  <div id="t-rec" style="display:none;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <!-- 新增受款方 -->
+      <div class="card" style="margin-bottom:0;">
+        <p class="lbl">新增常用受款方</p>
+        <div class="fg fg-1" style="margin-bottom:8px;">
+          <div class="field"><label>受款方名稱</label><input type="text" id="new-rec-name" placeholder="例：航普科技有限公司" /></div>
+        </div>
+        <div class="fg fg-1" style="margin-bottom:8px;">
+          <div class="field"><label>所屬群組（選填）</label>
+            <select id="new-rec-group"><option value="">不分群組</option></select>
+          </div>
+        </div>
+        <div class="fg fg-1" style="margin-bottom:10px;">
+          <div class="field"><label>常用管道（選填）</label>
+            <select id="new-rec-ch"><option value="">不指定</option></select>
+          </div>
+        </div>
+        <button class="btn pri" onclick="addRec()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增
+        </button>
+      </div>
+      <!-- 新增群組 -->
+      <div class="card" style="margin-bottom:0;">
+        <p class="lbl">新增群組</p>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.6;">群組可用來分類受款方，例如「文具用品」「工程廠商」「人事費」等</p>
+        <div class="fg fg-1" style="margin-bottom:10px;">
+          <input type="text" id="new-grp-name" placeholder="群組名稱" />
+        </div>
+        <button class="btn pri" onclick="addGroup()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增群組
+        </button>
+        <div style="margin-top:14px;" id="grp-mgr"></div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="lbl">常用受款方清單</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">依群組分類顯示，新增紀錄時按群組展開快捷標籤</p>
+      <div id="rec-mgr"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 備份管理 ═══ -->
+  <div id="t-backup" style="display:none;">
+    <div class="backup-grid">
+      <div class="backup-box">
+        <h3>📤 匯出備份</h3>
+        <p>將目前的所有紀錄、管道設定、常用受款方儲存為 JSON 檔案，可轉移到其他電腦或長期保存。</p>
+        <button class="btn green" onclick="exportJSON()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          立即匯出 JSON
+        </button>
+        <p class="note">建議時機：每次工作結束時匯出一份，存到雲端硬碟或備份資料夾。</p>
+      </div>
+      <div class="backup-box">
+        <h3>📥 載入備份</h3>
+        <p>選擇先前匯出的 JSON 備份檔案，還原所有紀錄與設定。<br><strong style="color:#c0392b;">注意：載入後將覆蓋目前資料。</strong></p>
+        <label class="btn" style="cursor:pointer;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          選擇 JSON 檔案
+          <input type="file" accept=".json" onchange="importJSON(event)" style="display:none;" />
+        </label>
+        <p class="note">載入後資料會自動儲存到瀏覽器，下次開啟無需重新載入。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:4px;">
+      <p class="lbl">瀏覽器自動儲存</p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <p style="font-size:13px;color:var(--text2);flex:1;">每次新增、刪除、編輯後自動存入瀏覽器。重新整理或關閉後再開啟資料仍在。</p>
+        <button class="btn ghost" onclick="clearStorage()">清除瀏覽器儲存</button>
+      </div>
+      <div id="storage-info" style="margin-top:10px;font-size:12px;color:var(--text3);"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY='payee_tool_v1';
+const PALETTE=["#185FA5","#0F6E56","#854F0B","#993C1D","#5F5E5A","#993556","#3B6D11","#534AB7","#1a7a8a","#7a4f1a"];
+let selColor=PALETTE[0];
+
+const DEFAULT_CHANNELS=[
+  {name:"民雄鄉農會",color:"#185FA5",fixed:true},
+  {name:"郵局轉存",color:"#0F6E56",fixed:true},
+  {name:"出納提現/轉發/劃撥",color:"#854F0B",fixed:true},
+  {name:"嘉義縣政府",color:"#993C1D",fixed:true},
+  {name:"其他",color:"#5F5E5A",fixed:true}
+];
+
+let channels=[...DEFAULT_CHANNELS.map(c=>({...c}))];
+let recGroups=[
+  {id:'g1',name:'文具用品'},
+  {id:'g2',name:'工程廠商'},
+];
+let commonRecs=[
+  {name:"巧瑀文具行",channel:"民雄鄉農會",group:'g1'},
+  {name:"航普科技有限公司",channel:"民雄鄉農會",group:'g2'},
+];
+let entries=[];
+let idCounter=1;
+let editingId=null;
+let saveTimer=null;
+let isDirty=false;
+
+const ICONS={
+  trash:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
+  edit:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  check:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  x:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+};
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmt(n){return '$'+Math.round(n).toLocaleString('zh-TW');}
+function getColor(ch){const c=channels.find(x=>x.name===ch);return c?c.color:'#888';}
+
+/* ══════════════════════════════
+   STORAGE
+══════════════════════════════ */
+function getState(){
+  return {channels,recGroups,commonRecs,entries,idCounter,savedAt:new Date().toISOString()};
+}
+function applyState(s){
+  if(!s)return false;
+  channels=s.channels||[...DEFAULT_CHANNELS.map(c=>({...c}))];
+  recGroups=s.recGroups||[];
+  commonRecs=s.commonRecs||[];
+  entries=s.entries||[];
+  idCounter=s.idCounter||1;
+  return true;
+}
+
+function saveLocal(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(getState()));
+    isDirty=false;
+    updateSaveBar(true);
+  }catch(e){updateSaveBar(false,'儲存失敗：'+e.message);}
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return false;
+    return applyState(JSON.parse(raw));
+  }catch(e){return false;}
+}
+
+function scheduleSave(){
+  isDirty=true;
+  updateSaveBar(false,'有未儲存的變更');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveLocal,800);
+}
+
+function updateSaveBar(ok,msg){
+  const dot=document.getElementById('save-dot');
+  const st=document.getElementById('save-st');
+  if(ok){
+    dot.className='dot ok';
+    const ts=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    st.innerHTML=`已自動儲存 <span class="ts">${ts}</span>`;
+  } else if(msg){
+    dot.className='dot dirty';
+    st.textContent=msg;
+  } else {
+    dot.className='dot dirty';
+    st.textContent='儲存中…';
+  }
+}
+
+function exportJSON(){
+  const data=getState();
+  const ts=new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`匯款紀錄備份_${ts}.json`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast('備份已匯出 ✓');
+}
+
+function importJSON(evt){
+  const file=evt.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.entries&&!data.channels){alert('檔案格式不正確，請選擇本工具匯出的 JSON 備份。');return;}
+      if(!confirm(`確定要載入備份「${file.name}」？\n目前資料將被覆蓋。`))return;
+      applyState(data);
+      idCounter=Math.max(idCounter,...entries.map(x=>x.id+1),1);
+      saveLocal();
+      buildChSel();buildQuickRec();render();
+      toast(`已載入備份：${file.name} ✓`);
+      buildStorageInfo();
+    }catch(err){alert('無法讀取備份檔案：'+err.message);}
+  };
+  reader.readAsText(file,'utf-8');
+  evt.target.value='';
+}
+
+function clearStorage(){
+  if(!confirm('確定清除瀏覽器儲存的所有資料？\n（可先匯出備份再清除）'))return;
+  localStorage.removeItem(STORAGE_KEY);
+  channels=[...DEFAULT_CHANNELS.map(c=>({...c}))];
+  commonRecs=[];entries=[];idCounter=1;editingId=null;
+  buildChSel();buildQuickRec();render();
+  updateSaveBar(false,'已清除瀏覽器儲存');
+  buildStorageInfo();
+  toast('瀏覽器儲存已清除');
+}
+
+function buildStorageInfo(){
+  const el=document.getElementById('storage-info');if(!el)return;
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw){el.textContent='目前瀏覽器無儲存資料。';return;}
+    const data=JSON.parse(raw);
+    const kb=(raw.length/1024).toFixed(1);
+    const ts=data.savedAt?new Date(data.savedAt).toLocaleString('zh-TW'):'—';
+    el.innerHTML=`目前儲存：<strong>${data.entries?.length||0}</strong> 筆紀錄　|　最後儲存：${ts}　|　佔用空間：${kb} KB`;
+  }catch(e){el.textContent='無法讀取儲存狀態。';}
+}
+
+/* ══════════════════════════════
+   UI – CHANNEL SELECT
+══════════════════════════════ */
+function buildChSel(){
+  ['ch-sel','new-rec-ch'].forEach(id=>{
+    const s=document.getElementById(id);if(!s)return;
+    const cur=s.value;
+    const prefix=id==='new-rec-ch'?'<option value="">不指定</option>':'';
+    s.innerHTML=prefix+channels.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+    if(channels.find(x=>x.name===cur))s.value=cur;
+  });
+  buildGroupSel();
+}
+function buildGroupSel(){
+  const s=document.getElementById('new-rec-group');if(!s)return;
+  const cur=s.value;
+  s.innerHTML='<option value="">不分群組</option>'+recGroups.map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
+  if(recGroups.find(x=>x.id===cur))s.value=cur;
+}
+function buildCP(){
+  document.getElementById('color-picker').innerHTML=PALETTE.map(c=>
+    `<div class="cdot${c===selColor?' on':''}" style="background:${c}" onclick="pickC('${c}')"></div>`).join('');
+}
+function pickC(c){selColor=c;buildCP();}
+
+/* ══════════════════════════════
+   CHANNEL MANAGER
+══════════════════════════════ */
+function buildChMgr(){
+  const el=document.getElementById('ch-mgr');
+  el.innerHTML=channels.map((c,i)=>`
+    <div class="mgr-item" id="chi-${i}">
+      <div class="mgr-dot" style="background:${c.color}"></div>
+      <span class="mgr-name">${esc(c.name)}</span>
+      ${c.fixed?'<span class="mgr-tag">預設</span>':''}
+      ${!c.fixed?`<button class="ibt" onclick="startEditCh(${i})">${ICONS.edit}</button>
+        <button class="ibt danger" onclick="removeCh(${i})">${ICONS.trash}</button>`:''}
+    </div>`).join('');
+}
+function addCh(){
+  const name=document.getElementById('new-ch-name').value.trim();
+  if(!name)return;
+  if(channels.find(c=>c.name===name)){alert('管道已存在');return;}
+  channels.push({name,color:selColor,fixed:false});
+  document.getElementById('new-ch-name').value='';
+  buildChSel();buildChMgr();buildQuickRec();scheduleSave();
+}
+function removeCh(i){
+  const c=channels[i];if(c.fixed)return;
+  if(entries.some(e=>e.channel===c.name)){if(!confirm(`已有「${c.name}」的紀錄，確定刪除管道？`))return;}
+  channels.splice(i,1);buildChSel();buildChMgr();render();scheduleSave();
+}
+function startEditCh(i){
+  const el=document.getElementById('chi-'+i);
+  el.innerHTML=`<div class="mgr-dot" style="background:${channels[i].color}"></div>
+    <input class="mgr-edit-inp" id="chi-inp-${i}" value="${esc(channels[i].name)}" />
+    <button class="ibt" onclick="confirmEditCh(${i})">${ICONS.check}</button>
+    <button class="ibt" onclick="buildChMgr()">${ICONS.x}</button>`;
+  const inp=document.getElementById('chi-inp-'+i);inp.focus();inp.select();
+  inp.onkeydown=e=>{if(e.key==='Enter')confirmEditCh(i);if(e.key==='Escape')buildChMgr();};
+}
+function confirmEditCh(i){
+  const v=document.getElementById('chi-inp-'+i).value.trim();if(!v)return;
+  const old=channels[i].name;channels[i].name=v;
+  entries.forEach(e=>{if(e.channel===old)e.channel=v;});
+  buildChSel();buildChMgr();render();scheduleSave();
+}
+
+/* ══════════════════════════════
+   GROUP MANAGER
+══════════════════════════════ */
+let grpCounter=Date.now();
+function buildGrpMgr(){
+  const el=document.getElementById('grp-mgr');if(!el)return;
+  if(!recGroups.length){el.innerHTML='<p class="empty-hint" style="padding:8px 0;">尚無群組</p>';return;}
+  el.innerHTML=recGroups.map((g,i)=>`
+    <div class="mgr-item" id="grpi-${i}" style="margin-bottom:6px;">
+      <span class="mgr-name" style="font-size:12px;">${esc(g.name)}</span>
+      <span class="mgr-tag">${commonRecs.filter(r=>r.group===g.id).length} 人</span>
+      <button class="ibt" onclick="startEditGrp(${i})">${ICONS.edit}</button>
+      <button class="ibt danger" onclick="removeGroup(${i})">${ICONS.trash}</button>
+    </div>`).join('');
+}
+function addGroup(){
+  const name=document.getElementById('new-grp-name').value.trim();if(!name)return;
+  if(recGroups.find(g=>g.name===name)){alert('群組已存在');return;}
+  recGroups.push({id:'g'+(++grpCounter),name});
+  document.getElementById('new-grp-name').value='';
+  buildGrpMgr();buildGroupSel();buildRecMgr();scheduleSave();
+}
+function removeGroup(i){
+  const g=recGroups[i];
+  const cnt=commonRecs.filter(r=>r.group===g.id).length;
+  if(cnt&&!confirm(`群組「${g.name}」內有 ${cnt} 個受款方，刪除群組後他們將改為不分群組，確定？`))return;
+  commonRecs.forEach(r=>{if(r.group===g.id)r.group='';});
+  recGroups.splice(i,1);
+  buildGrpMgr();buildGroupSel();buildRecMgr();scheduleSave();
+}
+function startEditGrp(i){
+  const el=document.getElementById('grpi-'+i);
+  el.innerHTML=`<input class="mgr-edit-inp" id="gi-${i}" value="${esc(recGroups[i].name)}" style="flex:1;font-size:12px;"/>
+    <button class="ibt" onclick="confirmEditGrp(${i})">${ICONS.check}</button>
+    <button class="ibt" onclick="buildGrpMgr()">${ICONS.x}</button>`;
+  const inp=document.getElementById('gi-'+i);inp.focus();inp.select();
+  inp.onkeydown=e=>{if(e.key==='Enter')confirmEditGrp(i);if(e.key==='Escape')buildGrpMgr();};
+}
+function confirmEditGrp(i){
+  const v=document.getElementById('gi-'+i).value.trim();if(!v)return;
+  recGroups[i].name=v;
+  buildGrpMgr();buildGroupSel();buildRecMgr();scheduleSave();
+}
+
+/* ══════════════════════════════
+   RECIPIENT MANAGER
+══════════════════════════════ */
+function buildRecMgr(){
+  const el=document.getElementById('rec-mgr');if(!el)return;
+  buildGrpMgr();
+  if(!commonRecs.length){el.innerHTML='<p class="empty-hint">尚無常用受款方</p>';return;}
+
+  // 依群組分組
+  const grouped=new Map(); // groupId -> recs[]
+  const noGroup=[];
+  recGroups.forEach(g=>grouped.set(g.id,[]));
+  commonRecs.forEach((r,i)=>{
+    if(r.group&&grouped.has(r.group)) grouped.get(r.group).push({r,i});
+    else noGroup.push({r,i});
+  });
+
+  let html='';
+  recGroups.forEach(g=>{
+    const items=grouped.get(g.id)||[];
+    html+=`<div class="rec-group-block">
+      <div class="rec-group-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text3)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="rg-name">${esc(g.name)}</span>
+        <span class="rg-cnt">${items.length} 個</span>
+      </div>
+      <div class="rec-group-items">${items.map(({r,i})=>recItemHTML(r,i)).join('')}</div>
+    </div>`;
+  });
+  if(noGroup.length){
+    html+=`<div class="rec-group-block">
+      <div class="rec-group-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--text3)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span class="rg-name" style="color:var(--text3);">未分群組</span>
+        <span class="rg-cnt">${noGroup.length} 個</span>
+      </div>
+      <div class="rec-group-items">${noGroup.map(({r,i})=>recItemHTML(r,i)).join('')}</div>
+    </div>`;
+  }
+  el.innerHTML=html;
+  buildQuickRec();
+}
+function recItemHTML(r,i){
+  return `<div class="mgr-item" id="reci-${i}">
+    <span class="mgr-name">${esc(r.name)}</span>
+    ${r.channel?`<span class="mgr-tag" style="color:${getColor(r.channel)}">${esc(r.channel)}</span>`:''}
+    <button class="ibt" onclick="startEditRec(${i})">${ICONS.edit}</button>
+    <button class="ibt danger" onclick="removeRec(${i})">${ICONS.trash}</button>
+  </div>`;
+}
+function addRec(){
+  const name=document.getElementById('new-rec-name').value.trim();
+  const group=document.getElementById('new-rec-group').value;
+  const channel=document.getElementById('new-rec-ch').value;
+  if(!name)return;
+  if(commonRecs.find(r=>r.name===name)){toast(`「${name}」已在清單中`);return;}
+  commonRecs.push({name,channel,group});
+  document.getElementById('new-rec-name').value='';
+  buildRecMgr();scheduleSave();
+}
+function removeRec(i){commonRecs.splice(i,1);buildRecMgr();scheduleSave();}
+function startEditRec(i){
+  const el=document.getElementById('reci-'+i);
+  const r=commonRecs[i];
+  const grpOpts=recGroups.map(g=>`<option value="${esc(g.id)}"${r.group===g.id?' selected':''}>${esc(g.name)}</option>`).join('');
+  el.innerHTML=`
+    <input class="mgr-edit-inp" id="ri-${i}" value="${esc(r.name)}" style="flex:1;min-width:80px;"/>
+    <select class="mgr-edit-inp" id="rg-${i}" style="flex:0 0 90px;font-size:11px;padding:3px 6px;">
+      <option value="">不分群組</option>${grpOpts}
+    </select>
+    <button class="ibt" onclick="confirmEditRec(${i})">${ICONS.check}</button>
+    <button class="ibt" onclick="buildRecMgr()">${ICONS.x}</button>`;
+  const inp=document.getElementById('ri-'+i);inp.focus();inp.select();
+  inp.onkeydown=e=>{if(e.key==='Enter')confirmEditRec(i);if(e.key==='Escape')buildRecMgr();};
+}
+function confirmEditRec(i){
+  const v=document.getElementById('ri-'+i).value.trim();if(!v)return;
+  const old=commonRecs[i].name;commonRecs[i].name=v;
+  const gSel=document.getElementById('rg-'+i);
+  if(gSel)commonRecs[i].group=gSel.value;
+  entries.forEach(e=>{if(e.recipient===old)e.recipient=v;});
+  buildRecMgr();render();scheduleSave();
+}
+
+/* ══════════════════════════════
+   QUICK TAGS & AUTOCOMPLETE
+══════════════════════════════ */
+function buildQuickRec(){
+  const el=document.getElementById('quick-rec');if(!el)return;
+  const curCh=document.getElementById('ch-sel').value;
+  const matched=commonRecs.filter(r=>!r.channel||r.channel===curCh);
+  const others=commonRecs.filter(r=>r.channel&&r.channel!==curCh);
+  let html='';
+  if(matched.length) html+=matched.map(r=>`<span class="rec-tag" onclick="pickRec('${esc(r.name)}')">${esc(r.name)}</span>`).join('');
+  if(others.length){
+    html+=`<span class="rec-section-label">其他管道</span>`;
+    html+=others.map(r=>`<span class="rec-tag" style="opacity:.6" onclick="pickRec('${esc(r.name)}')">${esc(r.name)}</span>`).join('');
+  }
+  el.innerHTML=html;
+}
+function pickRec(name){
+  document.getElementById('rec-inp').value=name;hideAC();
+  document.getElementById('amt-inp').focus();
+}
+function onRecInput(){
+  const q=document.getElementById('rec-inp').value.trim().toLowerCase();
+  const seen=new Set();const cands=[];
+  commonRecs.forEach(r=>{if(!seen.has(r.name)&&(!q||r.name.toLowerCase().includes(q))){seen.add(r.name);cands.push({name:r.name,channel:r.channel});}});
+  entries.forEach(e=>{if(!seen.has(e.recipient)&&(!q||e.recipient.toLowerCase().includes(q))){seen.add(e.recipient);cands.push({name:e.recipient,channel:e.channel});}});
+  if(!cands.length){hideAC();return;}
+  const ac=document.getElementById('ac-list');
+  ac.innerHTML=cands.map(c=>`<div class="ac-item" onmousedown="pickRec('${esc(c.name)}')">
+    <span style="flex:1">${esc(c.name)}</span>
+    ${c.channel?`<span class="ac-tag" style="color:${getColor(c.channel)}">${esc(c.channel)}</span>`:''}
+  </div>`).join('');
+  ac.style.display='block';
+}
+function hideAC(){document.getElementById('ac-list').style.display='none';}
+
+/* ══════════════════════════════
+   ENTRIES
+══════════════════════════════ */
+function addEntry(){
+  const channel=document.getElementById('ch-sel').value;
+  const recipient=document.getElementById('rec-inp').value.trim();
+  const raw=document.getElementById('amt-inp').value.trim();
+  const note=document.getElementById('note-inp').value.trim();
+  if(!recipient){document.getElementById('rec-inp').focus();return;}
+  if(!raw||isNaN(raw)||Number(raw)<=0){document.getElementById('amt-inp').focus();return;}
+  entries.push({id:idCounter++,channel,recipient,amount:Math.round(Number(raw)),note});
+
+  // 自動將新受款方加入常用資料庫
+  const alreadyKnown=commonRecs.some(r=>r.name===recipient);
+  if(!alreadyKnown){
+    commonRecs.push({name:recipient,channel});
+    toast(`「${recipient}」已自動加入常用受款方 ✓`);
+  }
+
+  document.getElementById('rec-inp').value='';
+  document.getElementById('amt-inp').value='';
+  document.getElementById('note-inp').value='';
+  document.getElementById('rec-inp').focus();
+  render();buildQuickRec();scheduleSave();
+}
+function delEntry(id){entries=entries.filter(e=>e.id!==id);render();scheduleSave();}
+function clearAll(){
+  if(!entries.length)return;
+  if(!confirm('確定清除所有明細紀錄？（管道設定與常用受款方不受影響）'))return;
+  entries=[];editingId=null;render();scheduleSave();
+  toast('所有紀錄已清除');
+}
+
+/* ══════════════════════════════
+   INLINE NOTE EDIT
+══════════════════════════════ */
+function startNoteEdit(id){editingId=id;render();setTimeout(()=>{const i=document.getElementById('nei-'+id);if(i){i.focus();i.select();}},0);}
+function confirmNoteEdit(id){
+  const i=document.getElementById('nei-'+id);
+  const e=entries.find(x=>x.id===id);
+  if(e&&i)e.note=i.value.trim();
+  editingId=null;render();scheduleSave();
+}
+function cancelNoteEdit(){editingId=null;render();}
+
+/* ══════════════════════════════
+   RENDER
+══════════════════════════════ */
+function render(){
+  const order=channels.map(c=>c.name);
+  const totals={},recs={};
+  channels.forEach(c=>{totals[c.name]=0;recs[c.name]=[];});
+  entries.forEach(e=>{
+    if(totals[e.channel]===undefined){totals[e.channel]=0;recs[e.channel]=[];}
+    totals[e.channel]+=e.amount;recs[e.channel].push(e);
+  });
+  const activeChans=[...new Set(entries.map(e=>e.channel))].sort((a,b)=>{
+    const ia=order.indexOf(a),ib=order.indexOf(b);
+    return (ia<0?999:ia)-(ib<0?999:ib);
+  });
+  const grand=entries.reduce((s,e)=>s+e.amount,0);
+
+  const sw=document.getElementById('summary-wrap');
+  if(!activeChans.length){
+    sw.innerHTML='<p class="empty-hint">新增紀錄後顯示各管道彙整</p>';
+    document.getElementById('grand').style.display='none';
+  } else {
+    sw.innerHTML=activeChans.map(ch=>{
+      const color=getColor(ch);
+      const rows=recs[ch];
+
+      // 同受款方累加：依 recipient 分組
+      const recMap=new Map();
+      rows.forEach(e=>{
+        if(!recMap.has(e.recipient)){
+          recMap.set(e.recipient,{amount:0,count:0,notes:[]});
+        }
+        const g=recMap.get(e.recipient);
+        g.amount+=e.amount;
+        g.count++;
+        if(e.note&&!g.notes.includes(e.note)) g.notes.push(e.note);
+      });
+
+      return `<div class="ch-group">
+        <div class="ch-header">
+          <div class="ch-dot" style="background:${color}"></div>
+          <span class="ch-name" style="color:${color}">${esc(ch)}</span>
+          <span class="ch-count">${rows.length} 筆 / ${recMap.size} 受款方</span>
+          <span class="ch-total">${fmt(totals[ch])}</span>
+        </div>
+        <div class="ch-rows">${[...recMap.entries()].map(([name,g])=>`<div class="ch-row">
+          <div>
+            <div class="ch-row-name">${esc(name)}${g.count>1?`<span style="font-size:10px;color:var(--text3);margin-left:6px;background:var(--surface3);padding:1px 6px;border-radius:9px;">${g.count} 筆</span>`:''}</div>
+            ${g.notes.length?`<div class="ch-row-note">${g.notes.map(esc).join('、')}</div>`:''}
+          </div>
+          <div class="ch-row-amt">${fmt(g.amount)}</div>
+        </div>`).join('')}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('grand').style.display='flex';
+    document.getElementById('grand-amt').textContent=fmt(grand);
+  }
+
+  const tbody=document.getElementById('log-body');
+  if(!entries.length){
+    tbody.innerHTML='<tr class="empty-row"><td colspan="6">尚無紀錄，請新增項目</td></tr>';
+  } else {
+    tbody.innerHTML=entries.map((e,i)=>{
+      const isEdit=editingId===e.id;
+      const noteCell=isEdit
+        ?`<div class="note-edit-row">
+            <input id="nei-${e.id}" value="${esc(e.note)}"
+              onkeydown="if(event.key==='Enter')confirmNoteEdit(${e.id});if(event.key==='Escape')cancelNoteEdit();" />
+            <button class="ibt" onclick="confirmNoteEdit(${e.id})">${ICONS.check}</button>
+            <button class="ibt" onclick="cancelNoteEdit()">${ICONS.x}</button>
+          </div>`
+        :`<div class="note-view" onclick="startNoteEdit(${e.id})" title="點擊編輯備註">
+            <span class="${e.note?'':'nil'}">${e.note?esc(e.note):'—'}</span>
+            <button class="ibt np">${ICONS.edit}</button>
+          </div>`;
+      return `<tr>
+        <td style="color:var(--text3);font-size:12px;">${i+1}</td>
+        <td><span style="font-size:12px;font-weight:600;color:${getColor(e.channel)}">${esc(e.channel)}</span></td>
+        <td style="font-size:13px;">${esc(e.recipient)}</td>
+        <td>${noteCell}</td>
+        <td class="r amt">${fmt(e.amount)}</td>
+        <td class="np"><button class="ibt danger" onclick="delEntry(${e.id})">${ICONS.trash}</button></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('fn').textContent=entries.length?`共 ${entries.length} 筆　合計 ${fmt(grand)}`:'';
+}
+
+/* ══════════════════════════════
+   TABS
+══════════════════════════════ */
+function sw(t){
+  ['entry','ch','rec','backup'].forEach(id=>document.getElementById('t-'+id).style.display=t===id?'':'none');
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['entry','ch','rec','backup'][i]===t));
+  if(t==='ch'){buildChMgr();buildCP();}
+  if(t==='rec'){buildChSel();buildGroupSel();buildRecMgr();}
+  if(t==='backup'){buildStorageInfo();}
+}
+
+/* ══════════════════════════════
+   EXPORT CSV / PRINT
+══════════════════════════════ */
+function expCSV(){
+  if(!entries.length){alert('尚無資料');return;}
+  const chOrder=channels.map(c=>c.name);
+  const activeChans=[...new Set(entries.map(e=>e.channel))].sort((a,b)=>{
+    return (chOrder.indexOf(a)<0?999:chOrder.indexOf(a))-(chOrder.indexOf(b)<0?999:chOrder.indexOf(b));
+  });
+
+  const rows=[['#','匯款管道','受款方','備註','金額']];
+  entries.forEach((e,i)=>rows.push([i+1,e.channel,e.recipient,e.note||'',e.amount]));
+  rows.push([]);
+
+  // 管道 + 受款方小計
+  rows.push(['【管道 / 受款方小計】','','','','']);
+  activeChans.forEach(ch=>{
+    const chEntries=entries.filter(e=>e.channel===ch);
+    const chTotal=chEntries.reduce((s,e)=>s+e.amount,0);
+    rows.push([ch,'','','',chTotal]);
+    // 同管道內按受款方累加
+    const recMap=new Map();
+    chEntries.forEach(e=>{
+      recMap.set(e.recipient,(recMap.get(e.recipient)||0)+e.amount);
+    });
+    recMap.forEach((amt,name)=>rows.push(['',name,'','',amt]));
+  });
+  rows.push(['合計','','','',entries.reduce((s,e)=>s+e.amount,0)]);
+
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='匯款金額累計.csv';a.click();
+}
+function doPrint(){
+  document.getElementById('pm').textContent='列印時間：'+new Date().toLocaleString('zh-TW');
+  document.getElementById('pdl').style.display='block';
+  editingId=null;render();
+  setTimeout(()=>{window.print();document.getElementById('pdl').style.display='none';},60);
+}
+
+/* ══════════════════════════════
+   TOAST
+══════════════════════════════ */
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+/* ══════════════════════════════
+   INIT
+══════════════════════════════ */
+document.getElementById('amt-inp').addEventListener('keydown',e=>{if(e.key==='Enter')addEntry();});
+document.getElementById('ch-sel').addEventListener('change',buildQuickRec);
+document.getElementById('new-ch-name').addEventListener('keydown',e=>{if(e.key==='Enter')addCh();});
+
+// 載入 localStorage
+const loaded=loadLocal();
+if(loaded){
+  const ts=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}').savedAt;
+  const dot=document.getElementById('save-dot');
+  const st=document.getElementById('save-st');
+  dot.className='dot ok';
+  st.innerHTML=`已從瀏覽器還原 <span class="ts">${ts?new Date(ts).toLocaleString('zh-TW'):''}</span>`;
+} else {
+  document.getElementById('save-dot').className='dot';
+  document.getElementById('save-st').textContent='尚未有儲存資料，新增後將自動儲存';
+}
+
+buildChSel();buildGroupSel();buildCP();buildQuickRec();render();
+</script>
+</body>
+</html>
